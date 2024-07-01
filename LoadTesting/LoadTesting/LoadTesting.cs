@@ -129,7 +129,17 @@ namespace LoadTesting
                     HttpResponseMessage response = await httpClient.GetAsync(url, cts.Token);
                     TimeSpan responseTime = stopwatch.Elapsed;
 
-                    // Perbarui properti RoundNumber
+                    // Perhitungan ukuran respons
+                    byte[] responseData = await response.Content.ReadAsByteArrayAsync();
+                    int responseSize = responseData.Length;
+
+                    // Perhitungan ukuran headers
+                    int headersSize = response.Headers.ToString().Length;
+
+                    // Hitung total estimasi data yang digunakan
+                    int totalDataUsage = headersSize + responseSize;
+
+                    // Tambahkan hasil ke dalam koleksi
                     int roundNumber = currentRoundNumber; // Simpan nilai roundNumber saat ini
                     return new List<LoadTestResult>
                     {
@@ -139,7 +149,8 @@ namespace LoadTesting
                             StatusCode = response.StatusCode,
                             ReasonPhrase = response.ReasonPhrase,
                             ResponseTime = responseTime,
-                            RoundNumber = roundNumber // Gunakan nilai roundNumber yang disimpan
+                            RoundNumber = roundNumber, // Gunakan nilai roundNumber yang disimpan
+                            EstimatedDataUsage = totalDataUsage // Tambahkan estimasi penggunaan data
                         }
                     };
                 }
@@ -152,16 +163,17 @@ namespace LoadTesting
                 // Perbarui properti RoundNumber
                 int roundNumber = currentRoundNumber; // Simpan nilai roundNumber saat ini
                 return new List<LoadTestResult>
-        {
-            new LoadTestResult
-            {
-                RequestNumber = requestNumber,
-                StatusCode = System.Net.HttpStatusCode.RequestTimeout,
-                ReasonPhrase = "Timeout",
-                ResponseTime = stopwatch.Elapsed,
-                RoundNumber = roundNumber // Gunakan nilai roundNumber yang disimpan
-            }
-        };
+                {
+                    new LoadTestResult
+                    {
+                        RequestNumber = requestNumber,
+                        StatusCode = System.Net.HttpStatusCode.RequestTimeout,
+                        ReasonPhrase = "Timeout",
+                        ResponseTime = stopwatch.Elapsed,
+                        RoundNumber = roundNumber, // Gunakan nilai roundNumber yang disimpan
+                        EstimatedDataUsage = 0 // Set estimasi penggunaan data ke 0 untuk permintaan yang timeout
+                    }
+                };
             }
             catch (Exception ex)
             {
@@ -176,7 +188,8 @@ namespace LoadTesting
                         StatusCode = System.Net.HttpStatusCode.InternalServerError,
                         ReasonPhrase = "Error",
                         ResponseTime = stopwatch.Elapsed,
-                        RoundNumber = currentRoundNumber // Tambahkan roundNumber ke dalam hasil
+                        RoundNumber = currentRoundNumber, // Tambahkan roundNumber ke dalam hasil
+                        EstimatedDataUsage = 0 // Set estimasi penggunaan data ke 0 untuk permintaan yang error
                     }
                 };
             }
@@ -209,7 +222,8 @@ namespace LoadTesting
             foreach (var result in currentTestResults.OrderBy(result => result.RequestNumber))
             {
                 string resultString = $"Request {result.RequestNumber}: {result.StatusCode} - {result.ReasonPhrase}, " +
-                    $"Response Time: {result.ResponseTime.TotalMilliseconds} ms";
+                $"Response Time: {result.ResponseTime.TotalMilliseconds} ms, " +
+                $"Data Usage: {result.EstimatedDataUsage} bytes";
 
                 outputTextBox.AppendText(resultString + Environment.NewLine);
             }
@@ -488,6 +502,7 @@ namespace LoadTesting
         public string ReasonPhrase { get; set; }
         public TimeSpan ResponseTime { get; set; }
         public int RoundNumber { get; set; }
+        public long EstimatedDataUsage { get; set; }
     }
 
     public class EvaluationData
